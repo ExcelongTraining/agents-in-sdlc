@@ -34,5 +34,12 @@ export const e164ToWaId = (e164: string): string => e164.replace(/\D/g, "");
 
 /** Mask anything that looks like a phone number inside free text (error messages, payload snippets). */
 export function maskPhonesInText(text: string): string {
-  return text.replace(/\+?\d[\d\s\-()]{7,}\d/g, (m) => maskPhone(m.replace(/[^\d+]/g, "").replace(/^(?!\+)/, "+")));
+  const mask = (m: string) => {
+    const d = m.replace(/\D/g, "");
+    return d.length <= 6 ? m : `${m.startsWith("+") ? "+" : ""}${d.slice(0, 2)}${"•".repeat(d.length - 6)}${d.slice(-4)}`;
+  };
+  return text
+    .replace(/\+\d[\d ()-]{6,}\d/g, mask) // +60 12-345 6789
+    .replace(/(?<![\w-])0\d{1,2}[- ]?\d{3,4}[- ]?\d{4}(?![\w-])/g, mask) // 012-345 6789
+    .replace(/(?<![\w-])\d{9,15}(?![\w-])/g, mask); // 60123456789
 }

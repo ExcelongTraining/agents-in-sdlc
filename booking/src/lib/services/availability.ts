@@ -63,7 +63,10 @@ export interface AvailabilityQuery {
 }
 
 export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promise<AvailabilityInput & { staffNames: Map<string, string> }> {
-  const [service, branch, settings] = await Promise.all([loadService(tx, q.serviceId), loadBranch(tx, q.branchId), loadSettings(tx)]);
+  // Queries on one transaction must run sequentially (a pg client runs one query at a time).
+  const service = await loadService(tx, q.serviceId);
+  const branch = await loadBranch(tx, q.branchId);
+  const settings = await loadSettings(tx);
   if (!service.active || (q.publicOnly && !service.online_bookable)) throw new AppError("NOT_FOUND", "Service not available.");
   if (service.branch_id && service.branch_id !== q.branchId) throw new AppError("NOT_FOUND", "Service not available at this branch.");
 
@@ -75,27 +78,25 @@ export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promi
   const lo = addMinutes(rangeStart, -24 * 60);
   const hi = addMinutes(rangeEnd, 24 * 60);
 
-  const [hours, business, exceptions, busy, rooms, roomBusy] = await Promise.all([
-    tx.query<{ staff_id: string; weekday: number; start_time: string; end_time: string }>(
-      "select staff_id, weekday, start_time::text, end_time::text from staff_working_hours where status = 'approved' and staff_id = any($1)", [staffIds]),
-    tx.query<{ weekday: number; open_time: string; close_time: string }>(
-      "select weekday, open_time::text, close_time::text from business_hours where branch_id = $1", [q.branchId]),
-    tx.query<{ staff_id: string | null; s: Date; e: Date }>(
-      `select staff_id, lower(period) s, upper(period) e from availability_exceptions
-        where status = 'approved' and period && tstzrange($3, $4, '[)')
-          and ((staff_id = any($1)) or (staff_id is null and branch_id = $2))`, [staffIds, q.branchId, lo, hi]),
-    tx.query<{ staff_id: string; s: Date; e: Date }>(
-      "select staff_id, lower(occupied) s, upper(occupied) e from appointment_assignments where status = 'active' and staff_id = any($1) and occupied && tstzrange($2, $3, '[)')",
-      [staffIds, lo, hi]),
-    service.requires_room ? tx.query<{ id: string }>("select id from rooms where branch_id = $1 and active order by name", [q.branchId]) : Promise.resolve([]),
-    service.requires_room
-      ? tx.query<{ room_id: string; s: Date; e: Date }>(
-          `select room_id, lower(occupied) s, upper(occupied) e from appointments
-            where branch_id = $1 and room_id is not null and occupied && tstzrange($2, $3, '[)')
-              and status in ('slot_held','pending_confirmation','confirmed','checked_in','in_progress','completed','replacement_pending')`,
-          [q.branchId, lo, hi])
-      : Promise.resolve([]),
-  ]);
+  const hours = await tx.query<{ staff_id: string; weekday: number; start_time: string; end_time: string }>(
+    "select staff_id, weekday, start_time::text, end_time::text from staff_working_hours where status = 'approved' and staff_id = any($1)", [staffIds]);
+  const business = await tx.query<{ weekday: number; open_time: string; close_time: string }>(
+    "select weekday, open_time::text, close_time::text from business_hours where branch_id = $1", [q.branchId]);
+  const exceptions = await tx.query<{ staff_id: string | null; s: Date; e: Date }>(
+    `select staff_id, lower(period) s, upper(period) e from availability_exceptions
+      where status = 'approved' and period && tstzrange($3, $4, '[)')
+        and ((staff_id = any($1)) or (staff_id is null and branch_id = $2))`, [staffIds, q.branchId, lo, hi]);
+  const busy = await tx.query<{ staff_id: string; s: Date; e: Date }>(
+    "select staff_id, lower(occupied) s, upper(occupied) e from appointment_assignments where status = 'active' and staff_id = any($1) and occupied && tstzrange($2, $3, '[)')",
+    [staffIds, lo, hi]);
+  const rooms = service.requires_room ? await tx.query<{ id: string }>("select id from rooms where branch_id = $1 and active order by name", [q.branchId]) : [];
+  const roomBusy = service.requires_room
+    ? await tx.query<{ room_id: string; s: Date; e: Date }>(
+        `select room_id, lower(occupied) s, upper(occupied) e from appointments
+          where branch_id = $1 and room_id is not null and occupied && tstzrange($2, $3, '[)')
+            and status in ('slot_held','pending_confirmation','confirmed','checked_in','in_progress','completed','replacement_pending')`,
+        [q.branchId, lo, hi])
+    : [];
 
   // Holds that have expired but have not been swept yet must not block availability.
   const staleHolds = await tx.query<{ staff_id: string; s: Date; e: Date }>(

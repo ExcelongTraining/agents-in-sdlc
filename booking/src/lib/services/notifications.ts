@@ -16,7 +16,8 @@ export type NotificationPurpose =
   | "manager_approval_required"
   | "kpi_reminder"
   | "customer_otp"
-  | "waitlist_available";
+  | "waitlist_available"
+  | "human_handoff";
 
 export interface EnqueueInput {
   purpose: NotificationPurpose;

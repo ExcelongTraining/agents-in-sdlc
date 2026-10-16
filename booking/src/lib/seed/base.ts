@@ -100,6 +100,7 @@ export async function seedBase(db: Q, opts: { passwordHash?: string; templatesAp
     ["manager_approval_required", "A replacement for {{date}} at {{time}} needs your approval.", "utility", ["date", "time"]],
     ["kpi_reminder", "Hi {{name}}, your progress this {{period}}: {{done}} of {{target}} hours. Remaining: {{remaining}}.", "utility", ["name", "period", "done", "target", "remaining"]],
     ["customer_otp", "Your verification code is {{code}}. It expires in 10 minutes.", "authentication", ["code"]],
+    ["human_handoff", "A customer asked to speak to a person on WhatsApp ({{customer}}). Please open the inbox in the app.", "utility", ["customer"]],
     ["waitlist_available", "Good news {{customer}}: a time opened on {{date}} at {{time}}. Reply to book it.", "utility", ["customer", "date", "time"]],
   ];
   for (const [purpose, body, category, params] of templates) {
