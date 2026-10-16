@@ -15,13 +15,19 @@ export function startOfLocalDay(isoDate: string, tz = DEFAULT_TZ): Date {
 /** Combine a local date and wall-clock time ("HH:mm" or "HH:mm:ss") in `tz` into a UTC Date. */
 export function localDateTime(isoDate: string, time: string, tz = DEFAULT_TZ): Date {
   const [h = "0", m = "0"] = time.split(":");
-  const dt = DateTime.fromISO(isoDate, { zone: tz }).set({ hour: Number(h), minute: Number(m), second: 0, millisecond: 0 });
+  const dt = DateTime.fromISO(isoDate, { zone: tz }).set({
+    hour: Number(h),
+    minute: Number(m),
+    second: 0,
+    millisecond: 0,
+  });
   if (!dt.isValid) throw new Error(`Invalid local date/time: ${isoDate} ${time}`);
   return dt.toUTC().toJSDate();
 }
 
 /** ISO weekday: 1 = Monday ... 7 = Sunday (matches business_hours.weekday). */
-export const isoWeekday = (isoDate: string, tz = DEFAULT_TZ): number => DateTime.fromISO(isoDate, { zone: tz }).weekday;
+export const isoWeekday = (isoDate: string, tz = DEFAULT_TZ): number =>
+  DateTime.fromISO(isoDate, { zone: tz }).weekday;
 
 export const addMinutes = (d: Date, minutes: number): Date => new Date(d.getTime() + minutes * 60_000);
 
@@ -45,7 +51,11 @@ export function eachLocalDate(fromIso: string, toIso: string, tz = DEFAULT_TZ): 
 export type KpiPeriod = "day" | "week" | "month";
 
 /** [start, end) of the KPI period containing `at`, in `tz` (weeks start Monday). */
-export function periodBounds(period: KpiPeriod, at: Date, tz = DEFAULT_TZ): { start: Date; end: Date; startDate: string; endDate: string } {
+export function periodBounds(
+  period: KpiPeriod,
+  at: Date,
+  tz = DEFAULT_TZ,
+): { start: Date; end: Date; startDate: string; endDate: string } {
   const unit = period === "day" ? "day" : period === "week" ? "week" : "month";
   const s = DateTime.fromJSDate(at, { zone: tz }).startOf(unit);
   const e = s.plus({ [unit === "day" ? "days" : unit === "week" ? "weeks" : "months"]: 1 });
@@ -57,6 +67,7 @@ export function periodBounds(period: KpiPeriod, at: Date, tz = DEFAULT_TZ): { st
   };
 }
 
-export const formatLocal = (d: Date, tz = DEFAULT_TZ, fmt = "EEE d MMM yyyy, h:mm a"): string => toLocal(d, tz).toFormat(fmt);
+export const formatLocal = (d: Date, tz = DEFAULT_TZ, fmt = "EEE d MMM yyyy, h:mm a"): string =>
+  toLocal(d, tz).toFormat(fmt);
 
 export { DateTime, Interval };

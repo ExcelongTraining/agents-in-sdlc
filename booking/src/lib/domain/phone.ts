@@ -36,7 +36,9 @@ export const e164ToWaId = (e164: string): string => e164.replace(/\D/g, "");
 export function maskPhonesInText(text: string): string {
   const mask = (m: string) => {
     const d = m.replace(/\D/g, "");
-    return d.length <= 6 ? m : `${m.startsWith("+") ? "+" : ""}${d.slice(0, 2)}${"•".repeat(d.length - 6)}${d.slice(-4)}`;
+    return d.length <= 6
+      ? m
+      : `${m.startsWith("+") ? "+" : ""}${d.slice(0, 2)}${"•".repeat(d.length - 6)}${d.slice(-4)}`;
   };
   return text
     .replace(/\+\d[\d ()-]{6,}\d/g, mask) // +60 12-345 6789

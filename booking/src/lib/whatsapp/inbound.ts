@@ -3,8 +3,26 @@
  * Shape: { entry: [{ changes: [{ value: { contacts: [...], messages: [...], statuses: [...] } }] }] }
  */
 export type InboundEvent =
-  | { kind: "message"; key: string; waMessageId: string; from: string; name?: string; type: string; text?: string; replyId?: string; timestamp: Date }
-  | { kind: "status"; key: string; waMessageId: string; recipient?: string; status: "sent" | "delivered" | "read" | "failed"; errorText?: string; timestamp: Date };
+  | {
+      kind: "message";
+      key: string;
+      waMessageId: string;
+      from: string;
+      name?: string;
+      type: string;
+      text?: string;
+      replyId?: string;
+      timestamp: Date;
+    }
+  | {
+      kind: "status";
+      key: string;
+      waMessageId: string;
+      recipient?: string;
+      status: "sent" | "delivered" | "read" | "failed";
+      errorText?: string;
+      timestamp: Date;
+    };
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -39,20 +57,45 @@ export function parseWebhook(body: unknown): InboundEvent[] {
         if (type === "interactive" && isObj(m.interactive)) {
           const br = m.interactive.button_reply;
           const lr = m.interactive.list_reply;
-          if (isObj(br)) { replyId = str(br.id); text = str(br.title); }
-          if (isObj(lr)) { replyId = str(lr.id); text = str(lr.title); }
+          if (isObj(br)) {
+            replyId = str(br.id);
+            text = str(br.title);
+          }
+          if (isObj(lr)) {
+            replyId = str(lr.id);
+            text = str(lr.title);
+          }
         }
-        if (type === "button" && isObj(m.button)) { replyId = str(m.button.payload); text = str(m.button.text); }
-        out.push({ kind: "message", key: `msg:${id}`, waMessageId: id, from, name: names.get(from), type, text, replyId, timestamp: ts(m.timestamp) });
+        if (type === "button" && isObj(m.button)) {
+          replyId = str(m.button.payload);
+          text = str(m.button.text);
+        }
+        out.push({
+          kind: "message",
+          key: `msg:${id}`,
+          waMessageId: id,
+          from,
+          name: names.get(from),
+          type,
+          text,
+          replyId,
+          timestamp: ts(m.timestamp),
+        });
       }
       for (const s of arr(value.statuses)) {
         const id = str(s.id);
         const status = str(s.status);
-        if (!id || !(status === "sent" || status === "delivered" || status === "read" || status === "failed")) continue;
+        if (!id || !(status === "sent" || status === "delivered" || status === "read" || status === "failed"))
+          continue;
         const e0 = arr(s.errors)[0];
         out.push({
-          kind: "status", key: `status:${id}:${status}`, waMessageId: id, recipient: str(s.recipient_id), status,
-          errorText: e0 ? `${e0.code ?? ""} ${str(e0.title) ?? str(e0.message) ?? ""}`.trim() : undefined, timestamp: ts(s.timestamp),
+          kind: "status",
+          key: `status:${id}:${status}`,
+          waMessageId: id,
+          recipient: str(s.recipient_id),
+          status,
+          errorText: e0 ? `${e0.code ?? ""} ${str(e0.title) ?? str(e0.message) ?? ""}`.trim() : undefined,
+          timestamp: ts(s.timestamp),
         });
       }
     }

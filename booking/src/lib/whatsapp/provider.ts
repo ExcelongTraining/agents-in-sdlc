@@ -33,7 +33,8 @@ let instance: WhatsAppProvider | undefined;
 
 export function getProvider(): WhatsAppProvider {
   if (override) return override;
-  if (!instance) instance = env().WHATSAPP_PROVIDER === "cloud" ? new CloudApiProvider() : new MockWhatsAppProvider();
+  if (!instance)
+    instance = env().WHATSAPP_PROVIDER === "cloud" ? new CloudApiProvider() : new MockWhatsAppProvider();
   return instance;
 }
 export function setProviderForTests(p: WhatsAppProvider | undefined): void {
@@ -41,7 +42,11 @@ export function setProviderForTests(p: WhatsAppProvider | undefined): void {
 }
 
 /** Verify Meta's X-Hub-Signature-256 ("sha256=<hex>") over the RAW request body with the app secret. Constant time. */
-export function verifySignature(rawBody: string, header: string | null | undefined, appSecret: string): boolean {
+export function verifySignature(
+  rawBody: string,
+  header: string | null | undefined,
+  appSecret: string,
+): boolean {
   if (!header?.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
   const given = header.slice("sha256=".length);

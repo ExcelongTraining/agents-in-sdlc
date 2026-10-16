@@ -15,13 +15,16 @@ declare module "vitest" {
  * Default matches the CI service container and the local sandbox.
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-  const adminUrl = process.env.TEST_DATABASE_ADMIN_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
+  const adminUrl =
+    process.env.TEST_DATABASE_ADMIN_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
   const name = `bk_test_${randomBytes(4).toString("hex")}`;
   const admin = new Client({ connectionString: adminUrl });
   try {
     await admin.connect();
   } catch (e) {
-    throw new Error(`Cannot connect to PostgreSQL for tests (${(e as Error).message}). Set TEST_DATABASE_ADMIN_URL. See README.`);
+    throw new Error(
+      `Cannot connect to PostgreSQL for tests (${(e as Error).message}). Set TEST_DATABASE_ADMIN_URL. See README.`,
+    );
   }
   await admin.query(`create database ${name}`);
   const u = new URL(adminUrl);

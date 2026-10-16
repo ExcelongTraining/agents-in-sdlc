@@ -1,0 +1,25 @@
+import type { Metadata } from "next";
+import { requireRole } from "@/lib/http/guard";
+import { getSettings } from "@/lib/services/admin";
+import { SettingsEditor } from "@/components/SettingsEditor";
+
+export const metadata: Metadata = { title: "Settings" };
+export const dynamic = "force-dynamic";
+
+export default async function Settings() {
+  const p = await requireRole(["manager"]);
+  const s = await getSettings(p);
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Settings</h1>
+      <p className="text-sm text-muted">
+        Every change is recorded with your name and reason. Business hours and rooms are changed in the
+        database via the setup guide in the docs for now.
+      </p>
+      <SettingsEditor
+        initial={s as never}
+        canEditGroups={["booking", "replacement", "allocation", "kpi", "retention"]}
+      />
+    </div>
+  );
+}

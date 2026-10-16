@@ -14,5 +14,6 @@ export async function rateLimit(tx: Tx, key: string, limit: number, windowSecond
      returning count`,
     [key, windowSeconds],
   );
-  if (row.count > limit) throw new AppError("RATE_LIMITED", "Too many attempts. Please wait a few minutes and try again.");
+  if (row.count > limit)
+    throw new AppError("RATE_LIMITED", "Too many attempts. Please wait a few minutes and try again.");
 }

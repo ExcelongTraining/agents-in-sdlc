@@ -42,10 +42,17 @@ export interface MetricResult {
 }
 
 const COMPLETED = "completed";
-const SCHEDULED_STATUSES = new Set(["confirmed", "checked_in", "in_progress", "replacement_pending", "completed"]);
+const SCHEDULED_STATUSES = new Set([
+  "confirmed",
+  "checked_in",
+  "in_progress",
+  "replacement_pending",
+  "completed",
+]);
 const CANCELLED = new Set(["cancelled_by_customer", "cancelled_by_business"]);
 
-const minutesOf = (r: WorkRecord, basis: HoursBasis): number => (basis === "actual" ? (r.actualMinutes ?? r.scheduledMinutes) : r.scheduledMinutes);
+const minutesOf = (r: WorkRecord, basis: HoursBasis): number =>
+  basis === "actual" ? (r.actualMinutes ?? r.scheduledMinutes) : r.scheduledMinutes;
 const toHours = (minutes: number): number => Math.round((minutes / 60) * 100) / 100;
 
 export interface KpiInput {
@@ -76,57 +83,120 @@ export function computeMetric(metric: KpiMetric, input: KpiInput): MetricResult 
     case "completed_service_hours": {
       const set = completed.filter((r) => r.kind !== "consultation" && r.countsTowardKpi);
       const minutes = sum(set.map(m));
-      return res(metric, toHours(minutes), "hours", `${set.length} completed appointment(s) totalling ${minutes} min ÷ 60 (${basis} duration)`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} completed appointment(s) totalling ${minutes} min ÷ 60 (${basis} duration)`,
+        { appointments: set.length, minutes },
+      );
     }
     case "scheduled_service_hours": {
-      const set = records.filter((r) => SCHEDULED_STATUSES.has(r.status) && r.kind !== "consultation" && r.countsTowardKpi);
+      const set = records.filter(
+        (r) => SCHEDULED_STATUSES.has(r.status) && r.kind !== "consultation" && r.countsTowardKpi,
+      );
       const minutes = sum(set.map((r) => r.scheduledMinutes));
-      return res(metric, toHours(minutes), "hours", `${set.length} scheduled appointment(s) totalling ${minutes} min ÷ 60`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} scheduled appointment(s) totalling ${minutes} min ÷ 60`,
+        { appointments: set.length, minutes },
+      );
     }
     case "consultation_hours": {
       const set = completed.filter((r) => r.kind === "consultation");
       const minutes = sum(set.map(m));
-      return res(metric, toHours(minutes), "hours", `${set.length} completed consultation(s) totalling ${minutes} min ÷ 60`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} completed consultation(s) totalling ${minutes} min ÷ 60`,
+        { appointments: set.length, minutes },
+      );
     }
     case "replacement_hours": {
-      const set = completed.filter((r) => r.origin === "replacement" && r.kind !== "consultation" && r.countsTowardKpi);
+      const set = completed.filter(
+        (r) => r.origin === "replacement" && r.kind !== "consultation" && r.countsTowardKpi,
+      );
       const minutes = sum(set.map(m));
-      return res(metric, toHours(minutes), "hours", `${set.length} completed appointment(s) taken over as replacement, ${minutes} min ÷ 60`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} completed appointment(s) taken over as replacement, ${minutes} min ÷ 60`,
+        { appointments: set.length, minutes },
+      );
     }
     case "cancelled_hours": {
       const set = records.filter((r) => CANCELLED.has(r.status));
       const minutes = sum(set.map((r) => r.scheduledMinutes));
-      return res(metric, toHours(minutes), "hours", `${set.length} cancelled appointment(s) totalling ${minutes} min ÷ 60`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} cancelled appointment(s) totalling ${minutes} min ÷ 60`,
+        { appointments: set.length, minutes },
+      );
     }
     case "no_show_hours": {
       const set = records.filter((r) => r.status === "no_show");
       const minutes = sum(set.map((r) => r.scheduledMinutes));
-      return res(metric, toHours(minutes), "hours", `${set.length} no-show(s) totalling ${minutes} min ÷ 60`, { appointments: set.length, minutes });
+      return res(
+        metric,
+        toHours(minutes),
+        "hours",
+        `${set.length} no-show(s) totalling ${minutes} min ÷ 60`,
+        { appointments: set.length, minutes },
+      );
     }
     case "utilisation_pct": {
       const minutes = sum(completed.map(m));
       const avail = input.availableMinutes ?? 0;
       const pct = avail > 0 ? Math.round((minutes / avail) * 1000) / 10 : 0;
-      return res(metric, pct, "percent", `${minutes} completed min ÷ ${avail} available min × 100`, { completedMinutes: minutes, availableMinutes: avail });
+      return res(metric, pct, "percent", `${minutes} completed min ÷ ${avail} available min × 100`, {
+        completedMinutes: minutes,
+        availableMinutes: avail,
+      });
     }
     case "completed_appointments": {
       const set = completed.filter((r) => r.countsTowardKpi);
-      return res(metric, set.length, "count", `${set.length} completed appointment(s) that count toward KPI`, { appointments: set.length });
+      return res(
+        metric,
+        set.length,
+        "count",
+        `${set.length} completed appointment(s) that count toward KPI`,
+        { appointments: set.length },
+      );
     }
     case "first_time_clients": {
       const ids = new Set(completed.filter((r) => r.firstVisit && r.customerId).map((r) => r.customerId));
-      return res(metric, ids.size, "count", `${ids.size} distinct client(s) on their first completed visit`, { clients: ids.size });
+      return res(metric, ids.size, "count", `${ids.size} distinct client(s) on their first completed visit`, {
+        clients: ids.size,
+      });
     }
     case "returning_clients": {
       const ids = new Set(completed.filter((r) => !r.firstVisit && r.customerId).map((r) => r.customerId));
-      return res(metric, ids.size, "count", `${ids.size} distinct returning client(s)`, { clients: ids.size });
+      return res(metric, ids.size, "count", `${ids.size} distinct returning client(s)`, {
+        clients: ids.size,
+      });
     }
   }
 }
 
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0);
-const res = (metric: KpiMetric, value: number, unit: MetricResult["unit"], explanation: string, inputs: Record<string, number>): MetricResult => ({
-  metric, value, unit, explanation, inputs,
+const res = (
+  metric: KpiMetric,
+  value: number,
+  unit: MetricResult["unit"],
+  explanation: string,
+  inputs: Record<string, number>,
+): MetricResult => ({
+  metric,
+  value,
+  unit,
+  explanation,
+  inputs,
 });
 
 export interface Progress {
@@ -143,7 +213,13 @@ export function progress(actual: number, target: number): Progress {
   if (target <= 0) return { actual, target, progressPct: 0, remaining: 0, explanation: "No target set" };
   const pct = Math.round((actual / target) * 1000) / 10;
   const remaining = Math.max(Math.round((target - actual) * 100) / 100, 0);
-  return { actual, target, progressPct: pct, remaining, explanation: `${actual} ÷ ${target} × 100 = ${pct}%; remaining = max(${target} − ${actual}, 0) = ${remaining}` };
+  return {
+    actual,
+    target,
+    progressPct: pct,
+    remaining,
+    explanation: `${actual} ÷ ${target} × 100 = ${pct}%; remaining = max(${target} − ${actual}, 0) = ${remaining}`,
+  };
 }
 
 /**
@@ -165,14 +241,23 @@ export function availableMinutes(
     for (const w of workingHours.filter((x) => x.weekday === day.weekday)) {
       const [sh = "0", sm = "0"] = w.start.split(":");
       const [eh = "0", em = "0"] = w.end.split(":");
-      let ws = day.set({ hour: Number(sh), minute: Number(sm) }).toUTC().toJSDate();
-      let we = day.set({ hour: Number(eh), minute: Number(em) }).toUTC().toJSDate();
+      let ws = day
+        .set({ hour: Number(sh), minute: Number(sm) })
+        .toUTC()
+        .toJSDate();
+      let we = day
+        .set({ hour: Number(eh), minute: Number(em) })
+        .toUTC()
+        .toJSDate();
       if (ws < start) ws = start;
       if (we > end) we = end;
       if (we <= ws) continue;
       // subtract union of exception overlaps
       const cuts = exceptions
-        .map((e) => ({ s: Math.max(e.start.getTime(), ws.getTime()), e: Math.min(e.end.getTime(), we.getTime()) }))
+        .map((e) => ({
+          s: Math.max(e.start.getTime(), ws.getTime()),
+          e: Math.min(e.end.getTime(), we.getTime()),
+        }))
         .filter((c) => c.e > c.s)
         .sort((a, b) => a.s - b.s);
       let covered = 0;
@@ -202,7 +287,10 @@ export interface Pace {
 /** Linear pace: how much of the target would be done if work were spread evenly across the period so far. */
 export function pace(period: KpiPeriod, at: Date, actual: number, target: number, tz: string): Pace {
   const b = periodBounds(period, at, tz);
-  const elapsed = Math.min(Math.max((at.getTime() - b.start.getTime()) / (b.end.getTime() - b.start.getTime()), 0), 1);
+  const elapsed = Math.min(
+    Math.max((at.getTime() - b.start.getTime()) / (b.end.getTime() - b.start.getTime()), 0),
+    1,
+  );
   const expected = Math.round(target * elapsed * 100) / 100;
   const status = actual >= expected * 1.05 ? "ahead" : actual >= expected * 0.85 ? "on_track" : "behind";
   return { expectedByNow: expected, status, elapsedFraction: Math.round(elapsed * 1000) / 1000 };

@@ -7,6 +7,9 @@ create table replacement_requests (
   original_assignment_id uuid not null references appointment_assignments(id),
   requested_by_staff_id uuid not null references staff_profiles(id),
   nominee_staff_id uuid references staff_profiles(id),
+  -- Snapshot so the requester and nominee can see WHAT is being asked without gaining access to the appointment or customer (RLS).
+  starts_at timestamptz not null,
+  service_name text not null,
   reason text not null check (length(btrim(reason)) >= 3 and length(reason) <= 300),
   status text not null check (status in (
     'awaiting_nominee','awaiting_nomination','awaiting_manager_approval',

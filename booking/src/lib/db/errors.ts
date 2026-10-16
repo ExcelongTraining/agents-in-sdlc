@@ -14,31 +14,56 @@ export function mapDbError(err: unknown): unknown {
     case "23P01":
       if (e.constraint === "appointments_room_no_overlap")
         return new AppError("ROOM_TAKEN", "That room is already booked at this time.", { cause: err });
-      return new AppError("SLOT_TAKEN", "That time has just been taken. Please choose another time.", { cause: err });
+      return new AppError("SLOT_TAKEN", "That time has just been taken. Please choose another time.", {
+        cause: err,
+      });
     case "BK001":
-      return new AppError("NOT_QUALIFIED", "That masseuse is not qualified for this service.", { cause: err });
+      return new AppError("NOT_QUALIFIED", "That masseuse is not qualified for this service.", {
+        cause: err,
+      });
     case "BK002":
-      return new AppError("OUTSIDE_WORKING_HOURS", "That time is outside the masseuse's working hours.", { cause: err });
+      return new AppError("OUTSIDE_WORKING_HOURS", "That time is outside the masseuse's working hours.", {
+        cause: err,
+      });
     case "BK003":
       return new AppError("STAFF_UNAVAILABLE", "That masseuse is unavailable at this time.", { cause: err });
     case "BK004":
       return new AppError("OUTSIDE_BUSINESS_HOURS", "That time is outside business hours.", { cause: err });
     case "BK005":
-      return new AppError("INVALID_TRANSITION", "That status change is not allowed.", { cause: err, internal: e.message });
+      return new AppError("INVALID_TRANSITION", "That status change is not allowed.", {
+        cause: err,
+        internal: e.message,
+      });
     case "BK006":
-      return new AppError("NOT_ALLOWED", "That field cannot be changed.", { cause: err, internal: e.message });
+      return new AppError("NOT_ALLOWED", "That field cannot be changed.", {
+        cause: err,
+        internal: e.message,
+      });
     case "BK007":
-      return new AppError("LEAVE_CONFLICTS_WITH_BOOKING", "Existing bookings overlap this period. Reassign or cancel them first.", { cause: err });
+      return new AppError(
+        "LEAVE_CONFLICTS_WITH_BOOKING",
+        "Existing bookings overlap this period. Reassign or cancel them first.",
+        { cause: err },
+      );
     case "BK008":
       return new AppError("OVERRIDE_REASON_REQUIRED", "An override needs a written reason.", { cause: err });
     case "23505":
-      return new AppError("NOT_ALLOWED", "That record already exists.", { cause: err, internal: e.constraint });
+      return new AppError("NOT_ALLOWED", "That record already exists.", {
+        cause: err,
+        internal: e.constraint,
+      });
     case "23503":
-      return new AppError("VALIDATION", "A referenced record does not exist.", { cause: err, internal: e.constraint });
+      return new AppError("VALIDATION", "A referenced record does not exist.", {
+        cause: err,
+        internal: e.constraint,
+      });
     case "23514":
     case "22P02":
     case "22007":
-      return new AppError("VALIDATION", "Some of the submitted values are not valid.", { cause: err, internal: e.constraint ?? e.message });
+      return new AppError("VALIDATION", "Some of the submitted values are not valid.", {
+        cause: err,
+        internal: e.constraint ?? e.message,
+      });
     case "42501":
       return new AppError("FORBIDDEN", "You do not have permission to do that.", { cause: err });
     default:

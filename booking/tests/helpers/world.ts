@@ -23,7 +23,9 @@ export async function resetWorld(): Promise<World> {
   clearOrgCacheForTests();
   const c = await adminClient();
   try {
-    const { rows } = await c.query("select tablename from pg_tables where schemaname = 'public' and tablename not in ('roles','appointment_status_transitions','schema_migrations')");
+    const { rows } = await c.query(
+      "select tablename from pg_tables where schemaname = 'public' and tablename not in ('roles','appointment_status_transitions','schema_migrations')",
+    );
     await c.query(`truncate ${rows.map((r) => `"${r.tablename}"`).join(", ")} restart identity cascade`);
     cachedHash ??= await hashPassword("Demo-Password-2026!");
     return await seedBase(c, { passwordHash: cachedHash });
@@ -36,8 +38,20 @@ export async function shutdown(): Promise<void> {
   await closePool();
 }
 
-export const managerPrincipal = (w: World): Principal => ({ userId: w.manager.userId, orgId: w.orgId, staffId: null, roles: ["manager"], displayName: "Demo Manager" });
-export const adminPrincipal = (w: World): Principal => ({ userId: w.admin.userId, orgId: w.orgId, staffId: null, roles: ["administrator"], displayName: "Demo Administrator" });
+export const managerPrincipal = (w: World): Principal => ({
+  userId: w.manager.userId,
+  orgId: w.orgId,
+  staffId: null,
+  roles: ["manager"],
+  displayName: "Demo Manager",
+});
+export const adminPrincipal = (w: World): Principal => ({
+  userId: w.admin.userId,
+  orgId: w.orgId,
+  staffId: null,
+  roles: ["administrator"],
+  displayName: "Demo Administrator",
+});
 export const staffPrincipal = (w: World, i: number): Principal => {
   const s = w.staff[i]!;
   return { userId: s.userId, orgId: w.orgId, staffId: s.id, roles: ["masseuse"], displayName: s.name };

@@ -39,18 +39,40 @@ export async function enqueueNotification(tx: Tx, n: EnqueueInput): Promise<void
     `insert into notification_jobs(organisation_id, purpose, recipient_kind, recipient_id, params, appointment_id, dedupe_key, next_attempt_at)
      values ($1,$2,$3,$4,$5,$6,$7,coalesce($8, now()))
      on conflict (organisation_id, dedupe_key) do nothing`,
-    [tx.ctx.orgId, n.purpose, n.recipientKind, n.recipientId, JSON.stringify(n.params ?? {}), n.appointmentId ?? null, n.dedupeKey, n.sendAt ?? null],
+    [
+      tx.ctx.orgId,
+      n.purpose,
+      n.recipientKind,
+      n.recipientId,
+      JSON.stringify(n.params ?? {}),
+      n.appointmentId ?? null,
+      n.dedupeKey,
+      n.sendAt ?? null,
+    ],
   );
 }
 
 /** Notify every active manager who has a phone number on file. */
 export async function notifyManagers(
-  tx: Tx, purpose: NotificationPurpose, params: Record<string, string | number>, appointmentId: string | null, dedupeBase: string,
+  tx: Tx,
+  purpose: NotificationPurpose,
+  params: Record<string, string | number>,
+  appointmentId: string | null,
+  dedupeBase: string,
 ): Promise<void> {
   const managers = await tx.query<{ id: string }>(
     `select u.id from users u join user_roles r on r.user_id = u.id and r.role_code = 'manager'
-      where u.organisation_id = $1 and u.status = 'active' and u.phone_e164 is not null`, [tx.ctx.orgId]);
+      where u.organisation_id = $1 and u.status = 'active' and u.phone_e164 is not null`,
+    [tx.ctx.orgId],
+  );
   for (const m of managers) {
-    await enqueueNotification(tx, { purpose, recipientKind: "user", recipientId: m.id, params, appointmentId, dedupeKey: `${dedupeBase}:${m.id}` });
+    await enqueueNotification(tx, {
+      purpose,
+      recipientKind: "user",
+      recipientId: m.id,
+      params,
+      appointmentId,
+      dedupeKey: `${dedupeBase}:${m.id}`,
+    });
   }
 }

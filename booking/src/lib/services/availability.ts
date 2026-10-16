@@ -1,6 +1,12 @@
 import type { Tx } from "../db/tx";
 import { AppError } from "../errors";
-import { computeSlots, groupByStart, type AvailabilityInput, type GroupedSlot, type Slot } from "../domain/availability";
+import {
+  computeSlots,
+  groupByStart,
+  type AvailabilityInput,
+  type GroupedSlot,
+  type Slot,
+} from "../domain/availability";
 import { addMinutes, startOfLocalDay } from "../domain/time";
 import { loadSettings } from "./settings";
 
@@ -21,14 +27,22 @@ export interface ServiceRow {
 }
 
 export async function loadService(tx: Tx, serviceId: string): Promise<ServiceRow> {
-  const s = await tx.maybeOne<ServiceRow>("select * from services where id = $1 and organisation_id = $2", [serviceId, tx.ctx.orgId]);
+  const s = await tx.maybeOne<ServiceRow>("select * from services where id = $1 and organisation_id = $2", [
+    serviceId,
+    tx.ctx.orgId,
+  ]);
   if (!s) throw new AppError("NOT_FOUND", "Service not found.");
   return s;
 }
 
-export async function loadBranch(tx: Tx, branchId: string): Promise<{ id: string; name: string; timezone: string }> {
+export async function loadBranch(
+  tx: Tx,
+  branchId: string,
+): Promise<{ id: string; name: string; timezone: string }> {
   const b = await tx.maybeOne<{ id: string; name: string; timezone: string }>(
-    "select id, name, timezone from branches where id = $1 and organisation_id = $2 and active", [branchId, tx.ctx.orgId]);
+    "select id, name, timezone from branches where id = $1 and organisation_id = $2 and active",
+    [branchId, tx.ctx.orgId],
+  );
   if (!b) throw new AppError("NOT_FOUND", "Branch not found.");
   return b;
 }
@@ -39,7 +53,12 @@ export interface StaffRef {
 }
 
 /** Active staff in the branch who are qualified for the service. */
-export async function qualifiedStaff(tx: Tx, branchId: string, serviceId: string, onlyStaffId?: string): Promise<StaffRef[]> {
+export async function qualifiedStaff(
+  tx: Tx,
+  branchId: string,
+  serviceId: string,
+  onlyStaffId?: string,
+): Promise<StaffRef[]> {
   return tx.query<StaffRef>(
     `select sp.id, sp.display_name from staff_profiles sp join staff_services ss on ss.staff_id = sp.id
       where sp.organisation_id = $1 and sp.branch_id = $2 and sp.active and sp.archived_at is null
@@ -62,13 +81,18 @@ export interface AvailabilityQuery {
   publicOnly?: boolean;
 }
 
-export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promise<AvailabilityInput & { staffNames: Map<string, string> }> {
+export async function loadAvailabilityInput(
+  tx: Tx,
+  q: AvailabilityQuery,
+): Promise<AvailabilityInput & { staffNames: Map<string, string> }> {
   // Queries on one transaction must run sequentially (a pg client runs one query at a time).
   const service = await loadService(tx, q.serviceId);
   const branch = await loadBranch(tx, q.branchId);
   const settings = await loadSettings(tx);
-  if (!service.active || (q.publicOnly && !service.online_bookable)) throw new AppError("NOT_FOUND", "Service not available.");
-  if (service.branch_id && service.branch_id !== q.branchId) throw new AppError("NOT_FOUND", "Service not available at this branch.");
+  if (!service.active || (q.publicOnly && !service.online_bookable))
+    throw new AppError("NOT_FOUND", "Service not available.");
+  if (service.branch_id && service.branch_id !== q.branchId)
+    throw new AppError("NOT_FOUND", "Service not available at this branch.");
 
   const staff = await qualifiedStaff(tx, q.branchId, q.serviceId, q.staffId);
   const staffIds = staff.map((s) => s.id);
@@ -79,29 +103,43 @@ export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promi
   const hi = addMinutes(rangeEnd, 24 * 60);
 
   const hours = await tx.query<{ staff_id: string; weekday: number; start_time: string; end_time: string }>(
-    "select staff_id, weekday, start_time::text, end_time::text from staff_working_hours where status = 'approved' and staff_id = any($1)", [staffIds]);
+    "select staff_id, weekday, start_time::text, end_time::text from staff_working_hours where status = 'approved' and staff_id = any($1)",
+    [staffIds],
+  );
   const business = await tx.query<{ weekday: number; open_time: string; close_time: string }>(
-    "select weekday, open_time::text, close_time::text from business_hours where branch_id = $1", [q.branchId]);
+    "select weekday, open_time::text, close_time::text from business_hours where branch_id = $1",
+    [q.branchId],
+  );
   const exceptions = await tx.query<{ staff_id: string | null; s: Date; e: Date }>(
     `select staff_id, lower(period) s, upper(period) e from availability_exceptions
       where status = 'approved' and period && tstzrange($3, $4, '[)')
-        and ((staff_id = any($1)) or (staff_id is null and branch_id = $2))`, [staffIds, q.branchId, lo, hi]);
+        and ((staff_id = any($1)) or (staff_id is null and branch_id = $2))`,
+    [staffIds, q.branchId, lo, hi],
+  );
   const busy = await tx.query<{ staff_id: string; s: Date; e: Date }>(
     "select staff_id, lower(occupied) s, upper(occupied) e from appointment_assignments where status = 'active' and staff_id = any($1) and occupied && tstzrange($2, $3, '[)')",
-    [staffIds, lo, hi]);
-  const rooms = service.requires_room ? await tx.query<{ id: string }>("select id from rooms where branch_id = $1 and active order by name", [q.branchId]) : [];
+    [staffIds, lo, hi],
+  );
+  const rooms = service.requires_room
+    ? await tx.query<{ id: string }>("select id from rooms where branch_id = $1 and active order by name", [
+        q.branchId,
+      ])
+    : [];
   const roomBusy = service.requires_room
     ? await tx.query<{ room_id: string; s: Date; e: Date }>(
         `select room_id, lower(occupied) s, upper(occupied) e from appointments
           where branch_id = $1 and room_id is not null and occupied && tstzrange($2, $3, '[)')
             and status in ('slot_held','pending_confirmation','confirmed','checked_in','in_progress','completed','replacement_pending')`,
-        [q.branchId, lo, hi])
+        [q.branchId, lo, hi],
+      )
     : [];
 
   // Holds that have expired but have not been swept yet must not block availability.
   const staleHolds = await tx.query<{ staff_id: string; s: Date; e: Date }>(
     `select g.staff_id, lower(g.occupied) s, upper(g.occupied) e from appointment_assignments g join appointments a on a.id = g.appointment_id
-      where g.status = 'active' and a.status = 'slot_held' and a.hold_expires_at <= $2 and g.staff_id = any($1)`, [staffIds, q.now]);
+      where g.status = 'active' and a.status = 'slot_held' and a.hold_expires_at <= $2 and g.staff_id = any($1)`,
+    [staffIds, q.now],
+  );
   const staleKey = new Set(staleHolds.map((h) => `${h.staff_id}|${h.s.getTime()}|${h.e.getTime()}`));
 
   return {
@@ -118,10 +156,14 @@ export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promi
     businessHours: business.map((b) => ({ weekday: b.weekday, start: b.open_time, end: b.close_time })),
     staff: staff.map((s) => ({
       staffId: s.id,
-      workingHours: hours.filter((h) => h.staff_id === s.id).map((h) => ({ weekday: h.weekday, start: h.start_time, end: h.end_time })),
+      workingHours: hours
+        .filter((h) => h.staff_id === s.id)
+        .map((h) => ({ weekday: h.weekday, start: h.start_time, end: h.end_time })),
     })),
     exceptions: exceptions.map((e) => ({ staffId: e.staff_id, start: e.s, end: e.e })),
-    busy: busy.filter((b) => !staleKey.has(`${b.staff_id}|${b.s.getTime()}|${b.e.getTime()}`)).map((b) => ({ staffId: b.staff_id, start: b.s, end: b.e })),
+    busy: busy
+      .filter((b) => !staleKey.has(`${b.staff_id}|${b.s.getTime()}|${b.e.getTime()}`))
+      .map((b) => ({ staffId: b.staff_id, start: b.s, end: b.e })),
     rooms: rooms.map((r) => r.id),
     roomBusy: roomBusy.map((r) => ({ roomId: r.room_id, start: r.s, end: r.e })),
     rules: {
@@ -134,7 +176,10 @@ export async function loadAvailabilityInput(tx: Tx, q: AvailabilityQuery): Promi
   };
 }
 
-export async function searchSlots(tx: Tx, q: AvailabilityQuery): Promise<{ slots: Slot[]; grouped: GroupedSlot[]; staffNames: Map<string, string> }> {
+export async function searchSlots(
+  tx: Tx,
+  q: AvailabilityQuery,
+): Promise<{ slots: Slot[]; grouped: GroupedSlot[]; staffNames: Map<string, string> }> {
   const input = await loadAvailabilityInput(tx, q);
   const slots = computeSlots(input);
   return { slots, grouped: groupByStart(slots), staffNames: input.staffNames };

@@ -32,9 +32,12 @@ export function env(): Env {
   }
   const e = parsed.data;
   if (e.WHATSAPP_PROVIDER === "cloud") {
-    const missing = ["WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_APP_SECRET", "WHATSAPP_VERIFY_TOKEN"].filter(
-      (k) => !process.env[k],
-    );
+    const missing = [
+      "WHATSAPP_ACCESS_TOKEN",
+      "WHATSAPP_PHONE_NUMBER_ID",
+      "WHATSAPP_APP_SECRET",
+      "WHATSAPP_VERIFY_TOKEN",
+    ].filter((k) => !process.env[k]);
     if (missing.length) throw new Error(`WHATSAPP_PROVIDER=cloud requires: ${missing.join(", ")}`);
   }
   if (e.NODE_ENV === "production" && !e.CRON_SECRET) throw new Error("CRON_SECRET is required in production");

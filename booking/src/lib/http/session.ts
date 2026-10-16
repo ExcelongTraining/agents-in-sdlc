@@ -12,10 +12,13 @@ export async function currentPrincipal(): Promise<Principal | null> {
 export async function setSessionCookie(token: string, expiresAt: Date): Promise<void> {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
-    httpOnly: true, secure: env().NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt,
+    httpOnly: true,
+    secure: env().NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
   });
 }
 export async function clearSessionCookie(): Promise<void> {
   (await cookies()).delete(SESSION_COOKIE);
 }
-

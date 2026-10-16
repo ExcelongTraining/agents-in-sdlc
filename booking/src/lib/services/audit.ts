@@ -7,12 +7,25 @@ import type { Tx } from "../db/tx";
  */
 export async function auditEvent(
   tx: Tx,
-  e: { action: string; entityType: string; entityId?: string | null; data?: Record<string, unknown>; reason?: string | null },
+  e: {
+    action: string;
+    entityType: string;
+    entityId?: string | null;
+    data?: Record<string, unknown>;
+    reason?: string | null;
+  },
 ): Promise<void> {
   await tx.query(
     `insert into audit_logs(organisation_id, actor_user_id, actor_kind, action, entity_type, entity_id, after_data, reason, request_id)
      values ($1, nullif(current_setting('app.user_id', true), '')::uuid, coalesce(nullif(current_setting('app.actor', true), ''), 'system'),
              $2, $3, $4, $5, $6, nullif(current_setting('app.request_id', true), ''))`,
-    [tx.ctx.orgId, e.action, e.entityType, e.entityId ?? null, e.data ? JSON.stringify(e.data) : null, e.reason ?? null],
+    [
+      tx.ctx.orgId,
+      e.action,
+      e.entityType,
+      e.entityId ?? null,
+      e.data ? JSON.stringify(e.data) : null,
+      e.reason ?? null,
+    ],
   );
 }

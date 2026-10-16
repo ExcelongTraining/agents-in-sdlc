@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+/* Design tokens. Contrast ratios checked against WCAG 2.2 AA (text >= 4.5:1, UI >= 3:1). */
+:root {
+  --bg: #f8faf9;
+  --surface: #ffffff;
+  --ink: #14211f;
+  --muted: #4b5d59; /* 6.9:1 on --bg */
+  --line: #c9d4d1;
+  --brand: #0f6b62; /* 6.1:1 on white */
+  --brand-ink: #ffffff;
+  --brand-soft: #e1f2ef;
+  --danger: #b42318; /* 6.5:1 on white */
+  --danger-soft: #fdecea;
+  --warn: #8a4b00;
+  --warn-soft: #fff4e0;
+  --ok: #1a6b36;
+  --ok-soft: #e5f5ea;
+  --focus: #1d4ed8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1615;
+    --surface: #16211f;
+    --ink: #e8f0ee;
+    --muted: #a9bbb7;
+    --line: #34463f;
+    --brand: #4fd1c0;
+    --brand-ink: #062a25;
+    --brand-soft: #123530;
+    --danger: #ff8a7a;
+    --danger-soft: #3a1a17;
+    --warn: #ffc069;
+    --warn-soft: #382a12;
+    --ok: #6fdc8c;
+    --ok-soft: #143323;
+    --focus: #8ab4ff;
+  }
+}
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+}
+html {
+  color-scheme: light dark;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink cursor-pointer;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--brand-soft);
+  }
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+  .btn-primary {
+    background: var(--brand);
+    color: var(--brand-ink);
+    border-color: var(--brand);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--brand);
+    filter: brightness(1.1);
+  }
+  .btn-danger {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  .input {
+    @apply min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink;
+  }
+  .label {
+    @apply mb-1 block text-sm font-semibold;
+  }
+  .hint {
+    @apply mt-1 text-sm text-muted;
+  }
+  .card {
+    @apply rounded-xl border border-line bg-surface p-4;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .badge-warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  .badge-danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .badge-ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+  .alert {
+    @apply rounded-lg border p-3 text-sm;
+  }
+  .alert-error {
+    background: var(--danger-soft);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .alert-ok {
+    background: var(--ok-soft);
+    border-color: var(--ok);
+    color: var(--ok);
+  }
+  .alert-info {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+    color: var(--ink);
+  }
+  .alert-warn {
+    background: var(--warn-soft);
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-line px-2 py-2 font-semibold text-muted;
+  }
+  .table td {
+    @apply border-b border-line px-2 py-2 align-top;
+  }
+}
+.sr-only-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+/* FullCalendar tokens */
+.fc {
+  --fc-border-color: var(--line);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--brand-soft);
+  --fc-today-bg-color: var(--brand-soft);
+  --fc-button-bg-color: var(--brand);
+  --fc-button-border-color: var(--brand);
+  --fc-button-text-color: var(--brand-ink);
+  --fc-button-hover-bg-color: var(--brand);
+  --fc-button-active-bg-color: var(--brand);
+  font-size: 0.9rem;
+}
+.fc .fc-button {
+  min-height: 2.5rem;
+}

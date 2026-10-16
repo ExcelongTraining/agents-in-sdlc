@@ -1,0 +1,14 @@
+{
+  "name": "Lotus Wellness Centre (demo)",
+  "short_name": "Lotus",
+  "description": "Book massages and consultations; staff schedules.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8faf9",
+  "theme_color": "#0f6b62",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

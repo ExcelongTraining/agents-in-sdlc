@@ -51,25 +51,52 @@ export class CloudApiProvider implements WhatsAppProvider {
   }
   sendButtons(to: string, body: string, buttons: ButtonOption[]): Promise<SendResult> {
     return this.post({
-      to: e164ToWaId(to), type: "interactive",
-      interactive: { type: "button", body: { text: body }, action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id, title: b.title.slice(0, 20) } })) } },
+      to: e164ToWaId(to),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: body },
+        action: {
+          buttons: buttons
+            .slice(0, 3)
+            .map((b) => ({ type: "reply", reply: { id: b.id, title: b.title.slice(0, 20) } })),
+        },
+      },
     });
   }
   sendList(to: string, body: string, buttonLabel: string, rows: ListRow[]): Promise<SendResult> {
     return this.post({
-      to: e164ToWaId(to), type: "interactive",
+      to: e164ToWaId(to),
+      type: "interactive",
       interactive: {
-        type: "list", body: { text: body },
-        action: { button: buttonLabel.slice(0, 20), sections: [{ title: "Options", rows: rows.slice(0, 10).map((r) => ({ id: r.id, title: r.title.slice(0, 24), ...(r.description ? { description: r.description.slice(0, 72) } : {}) })) }] },
+        type: "list",
+        body: { text: body },
+        action: {
+          button: buttonLabel.slice(0, 20),
+          sections: [
+            {
+              title: "Options",
+              rows: rows.slice(0, 10).map((r) => ({
+                id: r.id,
+                title: r.title.slice(0, 24),
+                ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+              })),
+            },
+          ],
+        },
       },
     });
   }
   sendTemplate(to: string, templateName: string, language: string, params: string[]): Promise<SendResult> {
     return this.post({
-      to: e164ToWaId(to), type: "template",
+      to: e164ToWaId(to),
+      type: "template",
       template: {
-        name: templateName, language: { code: language },
-        components: params.length ? [{ type: "body", parameters: params.map((p) => ({ type: "text", text: p })) }] : [],
+        name: templateName,
+        language: { code: language },
+        components: params.length
+          ? [{ type: "body", parameters: params.map((p) => ({ type: "text", text: p })) }]
+          : [],
       },
     });
   }

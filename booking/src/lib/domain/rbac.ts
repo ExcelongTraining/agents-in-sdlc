@@ -66,13 +66,18 @@ export interface Principal {
   staffId: string | null;
   roles: Role[];
   displayName: string;
+  mustChangePassword?: boolean;
 }
 
-export const can = (p: Principal, perm: Permission): boolean => p.roles.some((r) => r !== "customer" && MATRIX[r].includes(perm));
+export const can = (p: Principal, perm: Permission): boolean =>
+  p.roles.some((r) => r !== "customer" && MATRIX[r].includes(perm));
 
 export function requirePermission(p: Principal | null, perm: Permission): asserts p is Principal {
   if (!p) throw new AppError("UNAUTHENTICATED", "Please sign in.");
-  if (!can(p, perm)) throw new AppError("FORBIDDEN", "You do not have permission to do that.", { internal: `missing ${perm}` });
+  if (!can(p, perm))
+    throw new AppError("FORBIDDEN", "You do not have permission to do that.", {
+      internal: `missing ${perm}`,
+    });
 }
 
 export const permissionsFor = (role: Exclude<Role, "customer">): readonly Permission[] => MATRIX[role];

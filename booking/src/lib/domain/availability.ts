@@ -18,7 +18,12 @@ export interface AvailabilityInput {
   fromDate: string; // local yyyy-MM-dd, inclusive
   toDate: string; // inclusive
   now: Date;
-  service: { durationMinutes: number; bufferBeforeMinutes: number; bufferAfterMinutes: number; requiresRoom: boolean };
+  service: {
+    durationMinutes: number;
+    bufferBeforeMinutes: number;
+    bufferAfterMinutes: number;
+    requiresRoom: boolean;
+  };
   businessHours: TimeWindow[];
   staff: StaffAvailability[]; // already filtered to qualified, active staff
   /** Approved leave/breaks/blocked time. staffId null = branch-wide closure. */
@@ -51,7 +56,9 @@ const toMinutes = (t: string): number => {
 export function computeSlots(input: AvailabilityInput): Slot[] {
   const { tz, service, rules } = input;
   const earliest = rules.enforceNotice ? addMinutes(input.now, rules.minNoticeMinutes) : new Date(0);
-  const latest = rules.enforceNotice ? addMinutes(input.now, rules.maxAdvanceDays * 24 * 60) : new Date(8.64e15);
+  const latest = rules.enforceNotice
+    ? addMinutes(input.now, rules.maxAdvanceDays * 24 * 60)
+    : new Date(8.64e15);
   const slots: Slot[] = [];
 
   for (const date of eachLocalDate(input.fromDate, input.toDate, tz)) {
@@ -77,7 +84,13 @@ export function computeSlots(input: AvailabilityInput): Slot[] {
             if (staffBusy.some((x) => rangesOverlap(occStart, occEnd, x.start, x.end))) continue;
             let roomId: string | null = null;
             if (service.requiresRoom) {
-              roomId = input.rooms.find((r) => !input.roomBusy.some((x) => x.roomId === r && rangesOverlap(occStart, occEnd, x.start, x.end))) ?? null;
+              roomId =
+                input.rooms.find(
+                  (r) =>
+                    !input.roomBusy.some(
+                      (x) => x.roomId === r && rangesOverlap(occStart, occEnd, x.start, x.end),
+                    ),
+                ) ?? null;
               if (!roomId) continue;
             }
             slots.push({ startAt, endAt, staffId: st.staffId, roomId });
@@ -86,7 +99,9 @@ export function computeSlots(input: AvailabilityInput): Slot[] {
       }
     }
   }
-  return slots.sort((a, b) => a.startAt.getTime() - b.startAt.getTime() || a.staffId.localeCompare(b.staffId));
+  return slots.sort(
+    (a, b) => a.startAt.getTime() - b.startAt.getTime() || a.staffId.localeCompare(b.staffId),
+  );
 }
 
 export interface GroupedSlot {
@@ -109,5 +124,10 @@ export function groupByStart(slots: Slot[]): GroupedSlot[] {
 
 /** Closest alternative start times (same staff) to a requested time, used when the first choice is unavailable. */
 export function nearestSlots(slots: Slot[], target: Date, limit = 4): Slot[] {
-  return [...slots].sort((a, b) => Math.abs(a.startAt.getTime() - target.getTime()) - Math.abs(b.startAt.getTime() - target.getTime())).slice(0, limit);
+  return [...slots]
+    .sort(
+      (a, b) =>
+        Math.abs(a.startAt.getTime() - target.getTime()) - Math.abs(b.startAt.getTime() - target.getTime()),
+    )
+    .slice(0, limit);
 }

@@ -56,7 +56,11 @@ export class AppError extends Error {
   readonly details?: Record<string, unknown>;
   readonly internal?: string;
 
-  constructor(code: ErrorCode, message: string, opts: { details?: Record<string, unknown>; internal?: string; cause?: unknown } = {}) {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    opts: { details?: Record<string, unknown>; internal?: string; cause?: unknown } = {},
+  ) {
     super(message, { cause: opts.cause });
     this.name = "AppError";
     this.code = code;

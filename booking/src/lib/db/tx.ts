@@ -12,7 +12,14 @@ export type ActorKind = "user" | "system" | "customer" | "whatsapp" | "job";
  *  - system: trusted server code after its own authorisation (SET LOCAL ROLE booking_system); tenant-scoped.
  */
 export type DbContext =
-  | { kind: "staff"; orgId: string; userId: string; staffId?: string | null; roles: Role[]; requestId?: string }
+  | {
+      kind: "staff";
+      orgId: string;
+      userId: string;
+      staffId?: string | null;
+      roles: Role[];
+      requestId?: string;
+    }
   | { kind: "system"; orgId: string; actor?: ActorKind; userId?: string | null; requestId?: string };
 
 export interface Tx {
@@ -47,7 +54,10 @@ class TxImpl implements Tx {
     if (rows.length !== 1) throw new Error(`Expected exactly one row, got ${rows.length}`);
     return rows[0] as R;
   }
-  async maybeOne<R extends QueryResultRow = QueryResultRow>(sql: string, params: unknown[] = []): Promise<R | null> {
+  async maybeOne<R extends QueryResultRow = QueryResultRow>(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<R | null> {
     const rows = await this.query<R>(sql, params);
     return rows[0] ?? null;
   }
@@ -90,7 +100,11 @@ async function applyContext(client: PoolClient, ctx: DbContext): Promise<void> {
  * Run `fn` in one transaction (READ COMMITTED; correctness of booking rests on constraints, not isolation level).
  * Serialization failures and deadlocks are retried with the whole callback re-executed, so `fn` must be re-runnable.
  */
-export async function withTx<T>(ctx: DbContext, fn: (tx: Tx) => Promise<T>, opts: { retries?: number } = {}): Promise<T> {
+export async function withTx<T>(
+  ctx: DbContext,
+  fn: (tx: Tx) => Promise<T>,
+  opts: { retries?: number } = {},
+): Promise<T> {
   const maxAttempts = (opts.retries ?? 3) + 1;
   for (let attempt = 1; ; attempt++) {
     const client = await getPool().connect();
