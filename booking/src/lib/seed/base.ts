@@ -32,7 +32,8 @@ export async function seedBase(db: Q, opts: { passwordHash?: string; templatesAp
   const branchId = branch.id;
 
   const mkUser = async (email: string, name: string, role: string) => {
-    const u = await one<{ id: string }>("insert into users(organisation_id, email, display_name, password_hash) values ($1,$2,$3,$4) returning id", [orgId, email, name, hash]);
+    const phone = role === "manager" ? "+60100000900" : role === "administrator" ? "+60100000901" : null;
+    const u = await one<{ id: string }>("insert into users(organisation_id, email, display_name, phone_e164, password_hash) values ($1,$2,$3,$4,$5) returning id", [orgId, email, name, phone, hash]);
     await db.query("insert into user_roles(user_id, role_code, organisation_id, branch_id) values ($1,$2,$3,$4)", [u.id, role, orgId, branchId]);
     return u.id;
   };

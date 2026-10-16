@@ -53,6 +53,7 @@ create table users (
   organisation_id uuid not null references organisations(id),
   email text not null,
   display_name text not null,
+  phone_e164 text,                          -- for manager/administrator WhatsApp notifications
   password_hash text,                       -- scrypt$N$r$p$salt$hash ; null = invited, cannot log in yet
   status text not null default 'active' check (status in ('invited','active','disabled')),
   failed_login_count int not null default 0,

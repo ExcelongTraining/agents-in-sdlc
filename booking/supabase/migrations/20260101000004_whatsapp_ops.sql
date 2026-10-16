@@ -87,8 +87,8 @@ create table notification_jobs (
   organisation_id uuid not null references organisations(id),
   channel text not null default 'whatsapp' check (channel in ('whatsapp')),
   purpose text not null,                        -- template purpose key
-  recipient_kind text not null check (recipient_kind in ('customer','staff')),
-  recipient_id uuid not null,                   -- customers.id or staff_profiles.id (phone resolved at send time)
+  recipient_kind text not null check (recipient_kind in ('customer','staff','user')),
+  recipient_id uuid not null,                   -- customers.id, staff_profiles.id or users.id (phone resolved at send time)
   params jsonb not null default '{}',
   appointment_id uuid references appointments(id),
   dedupe_key text not null,

@@ -28,7 +28,7 @@ revoke update, delete on audit_logs from booking_system, booking_staff;
 revoke insert on audit_logs from booking_staff;
 revoke insert, update, delete on roles, appointment_status_transitions from booking_system, booking_staff;
 revoke all on users from booking_staff;
-grant select (id, organisation_id, email, display_name, status, must_change_password, last_login_at, created_at, updated_at, created_by, updated_by)
+grant select (id, organisation_id, email, display_name, phone_e164, status, must_change_password, last_login_at, created_at, updated_at, created_by, updated_by)
   on users to booking_staff;
 grant update (display_name, status, must_change_password, updated_by) on users to booking_staff;
 grant execute on all functions in schema public to booking_system, booking_staff;
