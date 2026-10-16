@@ -341,3 +341,146 @@ export async function integrationStatus(p: Principal) {
     };
   });
 }
+
+// ---- Business hours, rooms, KPI targets (manager configuration) -----------------------------------------------
+export const businessHoursInput = z.object({
+  windows: z
+    .array(
+      z.object({
+        weekday: z.number().int().min(1).max(7),
+        start: z.string().regex(/^\d{2}:\d{2}$/),
+        end: z.string().regex(/^\d{2}:\d{2}$/),
+      }),
+    )
+    .max(28),
+});
+
+export async function getBusinessHours(p: Principal) {
+  return withTx(staffCtx(p), (tx) =>
+    tx.query<{ weekday: number; start: string; end: string }>(
+      'select weekday, open_time::text as start, close_time::text as "end" from business_hours order by weekday, open_time',
+    ),
+  );
+}
+
+/** Replace the branch's opening hours. Existing bookings are untouched; the database re-checks hours on every new booking. */
+export async function saveBusinessHours(
+  p: Principal,
+  raw: z.input<typeof businessHoursInput>,
+): Promise<void> {
+  requirePermission(p, "services.manage");
+  const i = businessHoursInput.parse(raw);
+  for (const w of i.windows)
+    if (w.end <= w.start)
+      throw new AppError("VALIDATION", "Each closing time must be after its opening time.");
+  await withTx(sys(p), async (tx) => {
+    const branch = await tx.one<{ id: string }>(
+      "select id from branches where organisation_id = $1 and active order by created_at limit 1",
+      [p.orgId],
+    );
+    await tx.query("delete from business_hours where branch_id = $1", [branch.id]);
+    for (const w of i.windows) {
+      await tx.query(
+        "insert into business_hours(organisation_id, branch_id, weekday, open_time, close_time) values ($1,$2,$3,$4,$5)",
+        [p.orgId, branch.id, w.weekday, w.start, w.end],
+      );
+    }
+    await tx.setAuditReason("business hours replaced");
+    const { auditEvent } = await import("./audit");
+    await auditEvent(tx, {
+      action: "business_hours.replaced",
+      entityType: "branches",
+      entityId: branch.id,
+      data: { windows: i.windows.length },
+    });
+  });
+}
+
+export async function listRooms(p: Principal) {
+  return withTx(staffCtx(p), (tx) =>
+    tx.query<{ id: string; name: string; active: boolean }>(
+      "select id, name, active from rooms order by name",
+    ),
+  );
+}
+export async function saveRoom(
+  p: Principal,
+  input: { id?: string; name: string; active: boolean },
+): Promise<void> {
+  requirePermission(p, "services.manage");
+  const name = input.name.trim();
+  if (name.length < 1 || name.length > 60)
+    throw new AppError("VALIDATION", "Room names are 1 to 60 characters.");
+  await withTx(sys(p), async (tx) => {
+    if (input.id) {
+      const r = await tx.query("update rooms set name = $2, active = $3 where id = $1 returning id", [
+        input.id,
+        name,
+        input.active,
+      ]);
+      if (!r.length) throw new AppError("NOT_FOUND", "Room not found.");
+    } else {
+      const branch = await tx.one<{ id: string }>(
+        "select id from branches where organisation_id = $1 and active order by created_at limit 1",
+        [p.orgId],
+      );
+      await tx.query("insert into rooms(organisation_id, branch_id, name, active) values ($1,$2,$3,$4)", [
+        p.orgId,
+        branch.id,
+        name,
+        input.active,
+      ]);
+    }
+  });
+}
+
+export const kpiTargetInput = z.object({
+  definitionId: z.uuid(),
+  staffId: z.uuid().nullable(),
+  targetValue: z.number().positive().max(100000),
+  validFrom: z.iso.date(),
+});
+
+export async function listKpiConfig(p: Principal) {
+  requirePermission(p, "kpi.configure");
+  return withTx(staffCtx(p), async (tx) => ({
+    definitions: await tx.query<{
+      id: string;
+      code: string;
+      name: string;
+      metric: string;
+      period: string;
+      active: boolean;
+    }>("select id, code, name, metric, period, active from kpi_definitions order by name"),
+    targets: await tx.query<{
+      id: string;
+      kpi_definition_id: string;
+      staff_id: string | null;
+      target_value: number;
+      valid_from: string;
+      valid_to: string | null;
+    }>(
+      "select id, kpi_definition_id, staff_id, target_value, valid_from::text, valid_to::text from staff_kpi_targets where valid_to is null order by valid_from desc",
+    ),
+  }));
+}
+
+/** Set a target from a date. The previous open-ended target for the same KPI+person is closed the day before, so history is kept. */
+export async function setKpiTarget(p: Principal, raw: z.input<typeof kpiTargetInput>): Promise<void> {
+  requirePermission(p, "kpi.configure");
+  const i = kpiTargetInput.parse(raw);
+  await withTx(sys(p), async (tx) => {
+    await tx.query(
+      `update staff_kpi_targets set valid_to = ($3::date - 1) where kpi_definition_id = $1 and staff_id is not distinct from $2::uuid and valid_to is null and valid_from < $3::date`,
+      [i.definitionId, i.staffId, i.validFrom],
+    );
+    await tx.query(
+      "delete from staff_kpi_targets where kpi_definition_id = $1 and staff_id is not distinct from $2::uuid and valid_from = $3::date",
+      [i.definitionId, i.staffId, i.validFrom],
+    );
+    await tx.query(
+      "insert into staff_kpi_targets(organisation_id, kpi_definition_id, staff_id, target_value, valid_from, created_by) values ($1,$2,$3,$4,$5,$6)",
+      [p.orgId, i.definitionId, i.staffId, i.targetValue, i.validFrom, p.userId],
+    );
+  });
+}

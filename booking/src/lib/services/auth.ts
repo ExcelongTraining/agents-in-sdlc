@@ -39,28 +39,24 @@ export async function login(input: {
   const orgId = await getOrgId();
   const generic = new AppError("UNAUTHENTICATED", "Incorrect email or password.");
 
-  return withTx({ kind: "system", orgId, actor: "system" }, async (tx) => {
+  type Outcome =
+    { ok: false; locked: boolean } | { ok: true; token: string; expiresAt: Date; principal: Principal };
+  // Failures are RETURNED (so the transaction commits the rate-limit counter, lockout count and audit row) and thrown afterwards.
+  const outcome = await withTx({ kind: "system", orgId, actor: "system" }, async (tx): Promise<Outcome> => {
     await rateLimit(tx, `login:ip:${input.ip ?? "unknown"}`, 30, 600);
     await rateLimit(tx, `login:email:${email}`, 10, 600);
 
     const user = await tx.maybeOne<UserRow>("select * from auth_find_user($1)", [email]);
-    const ok = await verifyPassword(password, user?.password_hash ?? null);
-    if (!user || user.organisation_id !== orgId) throw generic;
-    if (user.locked_until && user.locked_until > new Date()) {
-      throw new AppError(
-        "UNAUTHENTICATED",
-        "This account is temporarily locked. Try again later or ask a manager to reset it.",
-      );
-    }
-    if (!ok || user.status !== "active") {
-      const failed = user.failed_login_count + 1;
+    const passwordOk = await verifyPassword(password, user?.password_hash ?? null); // same work whether or not the user exists
+    if (!user || user.organisation_id !== orgId) return { ok: false, locked: false };
+    if (user.locked_until && user.locked_until > new Date()) return { ok: false, locked: true };
+    if (!passwordOk || user.status !== "active") {
       await tx.query(
-        "update users set failed_login_count = $2, locked_until = case when $2 >= $3 then now() + make_interval(mins => $4) else locked_until end where id = $1",
-        [user.id, failed, MAX_FAILED, LOCK_MINUTES],
+        "update users set failed_login_count = $2::int, locked_until = case when $2::int >= $3::int then now() + make_interval(mins => $4::int) else locked_until end where id = $1",
+        [user.id, user.failed_login_count + 1, MAX_FAILED, LOCK_MINUTES],
       );
       await auditEvent(tx, { action: "auth.login_failed", entityType: "users", entityId: user.id });
-      // The failure must persist even though we throw: commit by returning a marker, then throw outside the tx.
-      return { failed: true as const };
+      return { ok: false, locked: false };
     }
 
     const token = newToken();
@@ -78,12 +74,18 @@ export async function login(input: {
     await tx.query("delete from sessions where user_id = $1 and expires_at < now()", [user.id]);
     await auditEvent(tx, { action: "auth.login", entityType: "users", entityId: user.id });
     const principal = await principalFromToken(tx, token);
-    if (!principal) throw generic;
-    return { failed: false as const, token, expiresAt, principal };
-  }).then((r) => {
-    if (r.failed) throw generic;
-    return { token: r.token, expiresAt: r.expiresAt, principal: r.principal };
+    if (!principal) return { ok: false, locked: false };
+    return { ok: true, token, expiresAt, principal };
   });
+  if (!outcome.ok) {
+    throw outcome.locked
+      ? new AppError(
+          "UNAUTHENTICATED",
+          "This account is temporarily locked. Try again later or ask a manager to reset it.",
+        )
+      : generic;
+  }
+  return { token: outcome.token, expiresAt: outcome.expiresAt, principal: outcome.principal };
 }
 
 async function principalFromToken(tx: import("../db/tx").Tx, token: string): Promise<Principal | null> {
@@ -153,16 +155,16 @@ export async function changeOwnPassword(
   next: string,
   keepToken?: string,
 ): Promise<void> {
-  await withTx(
+  // The rate-limit counter must survive a wrong guess, so a wrong current password is returned, not thrown, inside the tx.
+  const wrong = await withTx(
     { kind: "system", orgId: principal.orgId, userId: principal.userId, actor: "user" },
     async (tx) => {
       await rateLimit(tx, `pwchange:${principal.userId}`, 10, 900);
       const u = await tx.one<{ email: string; password_hash: string | null }>(
-        "select email, password_hash from auth_find_user((select email from users where id = $1))",
+        "select email, password_hash from users where id = $1",
         [principal.userId],
       );
-      if (!(await verifyPassword(current, u.password_hash)))
-        throw new AppError("UNAUTHENTICATED", "Your current password is not correct.");
+      if (!(await verifyPassword(current, u.password_hash))) return true;
       const problem = checkPasswordPolicy(next, u.email);
       if (problem) throw new AppError("VALIDATION", problem);
       if (next === current) throw new AppError("VALIDATION", "Choose a new password.");
@@ -179,6 +181,8 @@ export async function changeOwnPassword(
         entityType: "users",
         entityId: principal.userId,
       });
+      return false;
     },
   );
+  if (wrong) throw new AppError("UNAUTHENTICATED", "Your current password is not correct.");
 }

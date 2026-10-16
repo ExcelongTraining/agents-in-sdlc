@@ -17,6 +17,7 @@ export default async function ManagerLayout({ children }: { children: React.Reac
         { href: "/manager/inbox", label: "WhatsApp inbox" },
         { href: "/manager/availability", label: "Availability & leave" },
         { href: "/manager/reports", label: "Reports & KPIs" },
+        { href: "/manager/kpi", label: "KPI targets" },
         { href: "/manager/services", label: "Services" },
         { href: "/manager/team", label: "Team" },
         { href: "/manager/settings", label: "Settings" },

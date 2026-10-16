@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AppError } from "../errors";
 import type { Tx } from "../db/tx";
 
 /** Typed, defaulted application settings. Stored in application_settings as one JSON document per group. */
@@ -94,7 +95,13 @@ export async function saveSettingsGroup<G extends SettingsGroup>(
   value: Settings[G],
   reason: string,
 ): Promise<void> {
-  const parsed = settingsSchema.shape[group].parse(value);
+  const result = settingsSchema.shape[group].safeParse(value);
+  if (!result.success)
+    throw new AppError(
+      "VALIDATION",
+      `Invalid setting: ${result.error.issues[0]?.path.join(".")} ${result.error.issues[0]?.message ?? ""}`.trim(),
+    );
+  const parsed = result.data;
   await tx.setAuditReason(reason);
   await tx.query(
     `insert into application_settings(organisation_id, key, value, updated_by) values ($1,$2,$3,$4)
