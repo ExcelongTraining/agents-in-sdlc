@@ -112,6 +112,11 @@ test("manager pages pass automated accessibility checks", async ({ page }) => {
     "/manager/services",
     "/manager/team",
     "/manager/settings",
+    "/manager/kpi",
+    "/manager/inbox",
+    "/manager/privacy",
+    "/manager/templates",
+    "/manager/audit",
   ]) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");

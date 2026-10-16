@@ -13,14 +13,13 @@ export default async function Settings() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Settings</h1>
-      <p className="text-sm text-muted">
-        Every change is recorded with your name and reason. Business hours and rooms are changed in the
-        database via the setup guide in the docs for now.
-      </p>
+      <p className="text-sm text-muted">Every change is recorded with your name and reason.</p>
       <SettingsEditor
         initial={s as never}
         canEditGroups={["booking", "replacement", "allocation", "kpi", "retention"]}
       />
+      <BusinessHoursEditor />
+      <RoomsEditor rooms={rooms} />
     </div>
   );
 }
